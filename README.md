@@ -1,356 +1,409 @@
 # Customer Lifetime Value (CLV) & Revenue Forecasting Engine
 
-An end-to-end, production-grade business intelligence and predictive analytics platform that transforms granular transaction data into customer-level behavioral profiles, RFM segments, Customer Lifetime Value (CLV) forecasts, aggregate monthly revenue projections, and rule-based business recommendations.
+[![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Database](https://img.shields.io/badge/Database-DuckDB%20%7C%20SQLite-yellow?logo=duckdb&logoColor=white)](https://duckdb.org/)
+[![Dashboard](https://img.shields.io/badge/Frontend-Streamlit%201.35%2B-red?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Modeling](https://img.shields.io/badge/CLV-BG%2FNBD%20%2B%20Gamma--Gamma-purple)](https://github.com/CamDavidsonPilon/lifetimes)
+[![Forecasting](https://img.shields.io/badge/Forecasting-Holt--Winters%20%7C%20Seasonal--Naive-orange)](https://www.statsmodels.org/)
+[![Testing](https://img.shields.io/badge/Tests-33%20Passed%20(100%25)-brightgreen?logo=pytest&logoColor=white)](tests/)
+[![CI Status](https://img.shields.io/badge/CI-Automated%20GitHub%20Actions-success?logo=github-actions&logoColor=white)](.github/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
+
+An end-to-end, production-grade business intelligence and predictive analytics platform that transforms granular transaction data into customer-level behavioral profiles, RFM segments, Customer Lifetime Value (CLV) estimates, aggregate monthly revenue projections, and rule-based business recommendations.
+
+> [!NOTE]
+> **Zero Cloud Dependencies:** Operates entirely locally on Ubuntu Linux (or any standard Linux/macOS environment) with **0 Docker containers**, **0 paid APIs**, and **0 external cloud services** using an embedded **DuckDB** analytical store.
 
 ---
 
-## 1. Business Problem
+## Table of Contents
 
-Modern transactional businesses face core strategic challenges:
-- **Disproportionate Customer Contribution:** Often, a small fraction of customers drives the vast majority of cumulative revenue (Pareto principle), creating high revenue concentration risk.
-- **Dormancy & Silent Churn:** In non-contractual commerce, customers do not explicitly cancel; they quietly lapse into inactivity without warning.
-- **Uncertain Future Cash Flows:** Finance and marketing teams struggle to project future revenue trajectories and evaluate marketing spend without rigorous, empirically validated forecasts.
-- **Lack of Actionable Segmentation:** Blanket promotions erode margins and fail to engage distinct customer cohorts appropriately.
-
-The **Customer Lifetime Value (CLV) & Revenue Forecasting Engine** bridges these gaps by providing an interpretable, reproducible analytical system that converts raw purchase logs into forward-looking decisions.
+- [1. Business Problem & Executive Summary](#1-business-problem--executive-summary)
+- [2. System Architecture](#2-system-architecture)
+- [3. Key Platform Capabilities](#3-key-platform-capabilities)
+- [4. Data Ingestion, Hygiene & Auditability](#4-data-ingestion-hygiene--auditability)
+- [5. Analytical & Modeling Methodologies](#5-analytical--modeling-methodologies)
+  - [A. RFM Behavioral Segmentation](#a-rfm-behavioral-segmentation)
+  - [B. Customer Lifetime Value (CLV) Modeling](#b-customer-lifetime-value-clv-modeling)
+  - [C. Time-Series Revenue Forecasting](#c-time-series-revenue-forecasting)
+  - [D. Cohort Retention & Inactivity Lifecycle](#d-cohort-retention--inactivity-lifecycle)
+  - [E. Rule-Based Recommendation Engine](#e-rule-based-recommendation-engine)
+- [6. Interactive Dashboard Architecture (7 Pages)](#6-interactive-dashboard-architecture-7-pages)
+- [7. Analytical Database Schema (DuckDB / SQLite)](#7-analytical-database-schema-duckdb--sqlite)
+- [8. Installation & Quickstart](#8-installation--quickstart)
+- [9. Automated Testing & Verification](#9-automated-testing--verification)
+- [10. Engineering Highlights & Design Decisions](#10-engineering-highlights--design-decisions)
+- [11. Known Limitations & Responsible Modeling](#11-known-limitations--responsible-modeling)
 
 ---
 
-## 2. Project Objectives
+## 1. Business Problem & Executive Summary
 
-1. **Identify High-Value Customers:** Surface top revenue contributors and isolate key account dependencies.
-2. **Predict Future Customer Value:** Forecast forward transaction frequency and monetary value using probabilistic (BG/NBD + Gamma-Gamma) and transparent baseline models.
-3. **Detect Inactivity & Retention Risks:** Track repeat purchase rates, construct monthly cohort decay matrices, and flag high-value at-risk accounts before permanent defection.
-4. **Forecast Aggregate Monthly Revenue:** Evaluate multi-model time-series projections (Naive, Seasonal-Naive, Holt-Winters) with strictly chronological holdout testing.
-5. **Generate Evidence-Backed Actions:** Automate strategic recommendations backed by observed metrics, explicit decision rules, suggested initiatives, and business limitations.
+Non-contractual commercial platforms (retail, e-commerce, wholesale) face five critical operational blind spots:
+1. **Silent Attrition:** Customers do not cancel subscriptions; they quietly defect without notice.
+2. **Revenue Concentration Risk:** The Pareto principle frequently concentrates over 50% of revenue in fewer than 10% of accounts.
+3. **Flawed Single-Purchase Strategies:** Blanket marketing sequences waste margin on one-off buyers rather than fostering repeat buyer velocity.
+4. **Uncertain Cash Flow Trajectories:** Teams struggle to forecast upcoming multi-month revenue without accounting for trend and seasonality.
+5. **Black-Box Skepticism:** Predictive models without explicit assumption checks or transparent fallbacks fail business adoption.
+
+This platform solves these challenges through a modular, reproducible data engineering and statistical modeling engine that bridges raw order logs and executive decision-making.
 
 ---
 
-## 3. System Architecture
+## 2. System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion["1. Ingestion & Validation"]
-        A["Raw Data (CSV / XLSX / UCI)"] --> B["Schema Validator"]
-        B --> C["Data Cleaner & Anomaly Filter"]
-        C --> D["Data Quality Health Report"]
+    subgraph IngestionLayer["1. Ingestion & Data Quality"]
+        A["Raw Data (CSV / XLSX / UCI / Synthetic)"] --> B["Schema Validator & Alias Resolver"]
+        B --> C["Data Cleaning & Anomaly Isolation Engine"]
+        C --> D["Data Quality Health Report (Audit Score %)"]
     end
 
-    subgraph FeatureEngineering["2. Feature Extraction"]
+    subgraph FeatureLayer["2. Feature Engineering"]
         C --> E["Transaction Features (Temporal & Basket)"]
-        E --> F["Customer Metrics Aggregation"]
-        E --> G["Cohort Feature Matrix"]
+        E --> F["Customer Aggregations (AOV, Lifespan, Recency)"]
+        E --> G["Monthly Acquisition Cohort Matrix"]
     end
 
-    subgraph Modeling["3. Analytics & Predictive Models"]
-        F --> H["RFM Scoring & Segmentation"]
+    subgraph ModelingLayer["3. Statistical & Predictive Modeling"]
+        F --> H["Quantile RFM Scoring (7 Segments)"]
         F --> I["Probabilistic CLV (BG/NBD + Gamma-Gamma)"]
-        F --> J["Transparent Baseline CLV"]
+        F --> J["Transparent Forecast CLV (Recency Decay Damped)"]
         E --> K["Monthly Revenue Forecasting (Holt-Winters / Naive)"]
-        F --> L["Customer Inactivity & At-Risk Analysis"]
+        F --> L["Customer Inactivity & At-Risk Account Filter"]
     end
 
-    subgraph Storage["4. Persistence Layer"]
-        D --> M[("DuckDB Analytical Database")]
+    subgraph StorageLayer["4. Analytical Storage (OLAP)"]
+        D --> M[("Embedded DuckDB Database (clv_engine.duckdb)")]
         H --> M
         I --> M
         K --> M
         F --> M
     end
 
-    subgraph Presentation["5. Interactive UI & Delivery"]
-        M --> N["Executive Overview Page"]
-        M --> O["Segmentation Studio"]
-        M --> P["CLV Studio"]
-        M --> Q["Forecasting Center"]
-        M --> R["Retention & Cohorts"]
-        M --> S["Insights & Export Center"]
-        M --> T["Automated Markdown Business Briefing"]
+    subgraph DeliveryLayer["5. Interactive UI & Decision Delivery"]
+        M --> N["Executive Overview (Live KPIs & Trend)"]
+        M --> O["Segmentation Studio (Bubble & Drilldown)"]
+        M --> P["CLV Studio (Horizon & Diagnostic Cards)"]
+        M --> Q["Forecasting Center (Holdout Evaluation)"]
+        M --> R["Retention & Cohorts (Decay Heatmap)"]
+        M --> S["Insights Center (4-Pillar Rules & Exports)"]
+        M --> T["Automated Executive Markdown Briefing"]
     end
 ```
 
 ---
 
-## 4. Technology Stack
+## 3. Key Platform Capabilities
 
-- **Core Runtime:** Python 3.11 / 3.12 / 3.14 (Ubuntu Linux)
-- **Data Processing & Scientific Computing:** Pandas 2.2+, NumPy 1.26+, SciPy 1.12+
-- **Machine Learning & Modeling:** Scikit-learn 1.4+, Statsmodels 0.14+ (Holt-Winters Exponential Smoothing)
-- **Probabilistic CLV Modeling:** Lifetimes 0.11.3 (Beta-Geometric / Negative Binomial Distribution + Gamma-Gamma)
-- **Analytical Storage:** DuckDB (Default high-performance embedded OLAP database) with zero-configuration SQLite fallback
-- **Interactive Visualization:** Streamlit 1.35+, Plotly 5.20+
-- **Quality Assurance & Testing:** Pytest 8.0+
+| Capability | Implementation Details | Key Business Output |
+| :--- | :--- | :--- |
+| **Data Cleaning & DQ Audit** | Automated deduplication, return isolation (`is_return`), float-ID cleanup, invalid timestamp filtering. | Auditable Data Quality Health Score (`%`), clean sales separation. |
+| **RFM Segmentation** | Percent-rank quantile scoring (1–5) with tie-handling across Recency, Frequency, Spend. | Classifies accounts into 7 actionable segments (*Champions*, *At-Risk*, etc.). |
+| **Probabilistic CLV** | BG/NBD (transaction cadence) + Gamma-Gamma (monetary spend) with weekly time scaling. | 3, 6, 12-month expected transaction frequency, spend, and discounted net value. |
+| **Transparent CLV Fallback** | Exponential recency decay $\exp(-\text{recency}/180)$ with margin and discount rate options. | Safe, mathematically transparent baseline when sample assumptions fail. |
+| **Revenue Forecasting** | Chronological holdout evaluation comparing Naive, Seasonal-Naive, and Holt-Winters. | Forecasts future monthly revenue with defensible 95% prediction intervals. |
+| **Cohort Retention** | Acquisition month vs. activity month normalized matrix. | Visualizes retention degradation curve and repeat purchase rate. |
+| **Prescriptive Rules** | 4-part rule-based recommendation generator (Evidence, Trigger, Action, Limitation). | Actionable strategies without hardcoded or fabricated outcomes. |
+| **Dual Database Support** | Native DuckDB storage with seamless SQLite fallback. | Serverless, zero-setup ACID/OLAP persistence. |
 
 ---
 
-## 5. Repository Structure
+## 4. Data Ingestion, Hygiene & Auditability
 
+The engine ingests data from three transparent avenues:
+1. **Public Benchmark:** Official [UCI Machine Learning Repository: Online Retail Dataset](https://archive.ics.uci.edu/dataset/352/online+retail) containing non-store retail transactions.
+2. **Deterministic Synthetic Generator:** Self-contained script (`scripts/generate_synthetic_data.py`) creating reproducible transactions with deliberate real-world anomalies (returns, missing customer IDs, price zeroes, duplicate orders).
+3. **Custom Upload:** CSV or Excel upload through the dashboard with automated column alias mapping.
+
+### Data Cleaning Policies
+
+```mermaid
+flowchart LR
+    Raw["Raw Transactions"] --> Deduplication["1. Exact Deduplication"]
+    Deduplication --> DateParse["2. Timestamp Validation"]
+    DateParse --> CustClean["3. CustomerID Standardization"]
+    CustClean --> Returns["4. Separate Cancellations / Returns"]
+    Returns --> PriceFilter["5. UnitPrice & Quantity Filtering"]
+    PriceFilter --> ValidSales["Cleaned Sales Dataset"]
+    Returns --> ReturnPool["Isolated Returns Dataset"]
 ```
-customer-lifetime-value-forecasting/
-├── app.py                         # Main Streamlit interactive dashboard entrypoint
-├── requirements.txt               # Pinned, tested Python dependencies
-├── README.md                      # Comprehensive project documentation
-├── .gitignore                     # Git hygiene exclusions
-├── .env.example                   # Environment configuration template
-├── config/
-│   ├── __init__.py
-│   ├── settings.py                # Centralized paths, schemas, and hyperparameters
-│   └── logging_config.py          # Formatted stream and file logging utility
-├── data/
-│   ├── raw/                       # Uploaded or downloaded raw retail files
-│   ├── processed/                 # Staged intermediate datasets
-│   └── synthetic/                 # Deterministic synthetic retail datasets
-├── database/
-│   ├── __init__.py
-│   ├── db_manager.py              # Analytical database abstraction (DuckDB / SQLite / Postgres)
-│   └── schema.sql                 # DDL definitions for analytical tables
-├── src/
-│   ├── __init__.py
-│   ├── ingestion/
-│   │   ├── __init__.py
-│   │   ├── loader.py              # File loading, UCI downloader, provenance tracking
-│   │   └── schema_validator.py    # Schema verification and column alias mapping
-│   ├── preprocessing/
-│   │   ├── __init__.py
-│   │   ├── cleaner.py             # Deduplication, cancellation/return isolation, cleaning
-│   │   └── data_quality.py        # Standardized Data Quality Health Score calculation
-│   ├── features/
-│   │   ├── __init__.py
-│   │   ├── transaction_features.py# Calendar and basket-level feature extraction
-│   │   ├── customer_features.py   # Customer-level aggregations (AOV, recency, lifespan)
-│   │   └── cohort_features.py     # Monthly acquisition cohort matrices
-│   ├── segmentation/
-│   │   ├── __init__.py
-│   │   └── rfm.py                 # Quantile RFM scoring and business segment mapping
-│   ├── clv/
-│   │   ├── __init__.py
-│   │   ├── baseline.py            # Historical baseline & transparent forecast CLV
-│   │   ├── probabilistic.py       # BG/NBD + Gamma-Gamma with fallback logic
-│   │   └── evaluation.py          # Distribution metrics and model comparisons
-│   ├── forecasting/
-│   │   ├── __init__.py
-│   │   ├── revenue_forecast.py    # Chronological split, Holt-Winters, Naive baselines
-│   │   └── evaluation.py          # Time-series metrics (MAE, RMSE, WAPE, MAPE)
-│   ├── retention/
-│   │   ├── __init__.py
-│   │   └── retention_analysis.py  # Repeat rates, inactivity buckets, at-risk flags
-│   ├── recommendations/
-│   │   ├── __init__.py
-│   │   └── rules.py               # 4-part rule-based strategic recommendation engine
-│   ├── pipeline/
-│   │   ├── __init__.py
-│   │   └── orchestrator.py        # End-to-end modular pipeline orchestrator
-│   └── reporting/
-│       ├── __init__.py
-│       └── report_generator.py    # Automated executive Markdown report compiler
-├── ui/
-│   ├── __init__.py
-│   ├── overview.py                # Page 1: Executive Overview
-│   ├── segmentation.py            # Page 2: Customer Segmentation
-│   ├── clv_studio.py              # Page 3: CLV Prediction Studio
-│   ├── forecasting.py             # Page 4: Revenue Forecasting
-│   ├── retention.py               # Page 5: Retention & Cohort Dynamics
-│   ├── data_quality.py            # Page 6: Data Quality & Ingestion Center
-│   └── insights.py                # Page 7: Insights & Export Center
-├── sql/
-│   └── analytics.sql              # Reusable parameterized SQL analytical queries
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py                # Controlled pytest fixtures
-│   ├── test_loader.py             # Ingestion & schema validation tests
-│   ├── test_cleaner.py            # Data cleaning & DQ audit tests
-│   ├── test_rfm.py                # RFM scoring & segment classification tests
-│   ├── test_clv.py                # CLV baseline & probabilistic model tests
-│   ├── test_forecasting.py        # Time-series forecasting & metric tests
-│   ├── test_database.py           # DuckDB & SQLite persistence tests
-│   └── test_pipeline.py           # End-to-end integration tests
-├── scripts/
-│   ├── __init__.py
-│   ├── generate_synthetic_data.py # Deterministic synthetic dataset generator
-│   └── run_pipeline.py            # CLI pipeline execution script
-├── reports/                       # Generated executive business reports
-└── logs/                          # Persistent application log files
+
+> [!IMPORTANT]
+> **Data Quality Health Formula:**
+> $$\text{DQ Health Score} = \left(\frac{\text{Cleaned Valid Sales Rows}}{\text{Total Raw Ingested Rows}}\right) \times 100$$
+> Excluded records (guest checkouts without customer IDs, cancellation adjustments, unit price anomalies) are tracked transparently in the `data_quality_reports` database table.
+
+---
+
+## 5. Analytical & Modeling Methodologies
+
+### A. RFM Behavioral Segmentation
+
+To prevent quantile collapse when many customers place only one order, scoring uses rank percentiles:
+- **Recency ($R$):** Days elapsed from last purchase to reference date. Inverted: lowest recency earns $R=5$.
+- **Frequency ($F$):** Distinct completed invoices (not line items). Highest earns $F=5$.
+- **Monetary ($M$):** Cumulative spend across all valid orders. Highest earns $M=5$.
+
+#### Segment Assignment Rules
+
+```mermaid
+flowchart TD
+    Start["Customer RFM Scores (R, F, M)"] --> Q1{"R >= 4 & F >= 4?"}
+    Q1 -- Yes --> S1["🏆 Champions"]
+    Q1 -- No --> Q2{"R >= 4 & F == 1?"}
+    Q2 -- Yes --> S2["🌱 Recent Customers"]
+    Q2 -- No --> Q3{"R >= 4 & F < 4?"}
+    Q3 -- Yes --> S3["⭐ Potential Loyalists"]
+    Q3 -- No --> Q4{"R >= 3 & F >= 3?"}
+    Q4 -- Yes --> S4["💎 Loyal Customers"]
+    Q4 -- No --> Q5{"R <= 2 & F >= 3?"}
+    Q5 -- Yes --> S5["⚠️ At-Risk Customers"]
+    Q5 -- No --> Q6{"(R==2 or R==3) & F >= 2?"}
+    Q6 -- Yes --> S6["🔔 Customers Needing Attention"]
+    Q6 -- No --> S7["💤 Hibernating Customers"]
 ```
 
 ---
 
-## 6. Dataset Sources & Governance
+### B. Customer Lifetime Value (CLV) Modeling
 
-### Preferred Public Dataset: UCI Online Retail
-- **Source:** [UCI Machine Learning Repository: Online Retail Dataset](https://archive.ics.uci.edu/dataset/352/online+retail)
-- **Description:** Real non-store online retail transactions recorded between December 2010 and December 2011 for a UK-based registered giftware retailer.
-- **Attributes:** `InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `UnitPrice`, `CustomerID`, `Country`.
-- **Note:** This dataset represents wholesale and retail gift sales and may exhibit customer purchasing patterns unique to seasonal gift merchandise.
+The studio implements two complementary models and one historical benchmark:
 
-### Deterministic Synthetic Dataset Generator
-- Built-in generator (`scripts/generate_synthetic_data.py`) creating realistic transactional data with intentional, calibrated anomalies:
-  - Cancellations/returns indicated by `C` invoice prefix and negative quantities (~4%).
-  - Guest checkouts with missing `CustomerID` (~5%).
-  - Duplicate transaction rows (~1.5%).
-  - Zero/invalid unit prices (~0.3%).
-  - Corrupted date strings (~0.1%).
-- **Fixed Seed:** Deterministic generation (`seed=42`) ensures full reproducibility.
-- **Provenance Labeling:** The UI, logs, and database explicitly display an active warning when synthetic data is loaded.
+#### 1. Probabilistic Model (BG/NBD + Gamma-Gamma)
+- **Transaction Rate $\lambda$ & Dropout Probability $p$ (BG/NBD):**
+  Models purchase frequency as a Poisson process with Gamma-distributed purchase rates, and churn as a Geometric process with Beta-distributed dropouts.
+- **Monetary Value (Gamma-Gamma):**
+  Models average spend per transaction with Gamma distribution.
+- **Independence Check:** Validates Gamma-Gamma independence assumption via Pearson correlation test ($r \approx 0, p > 0.05$).
+- **Weekly Time Scaling:** Recency and customer age $T$ are scaled to weeks to prevent numerical underflow in optimization:
+  $$\text{recency\_weeks} = \frac{\text{recency\_days}}{7}, \quad T_{\text{weeks}} = \frac{T_{\text{days}}}{7}$$
 
----
+#### 2. Transparent Forecast Baseline (Robust Fallback)
+When repeat buyer counts are low ($< 10$) or optimization fails, the system automatically falls back to an interpretable analytical model with exponential recency decay damping:
 
-## 7. Data Cleaning Policy & Data Quality Health
+$$\text{Activity Weight} = \exp\left(-\frac{\text{recency\_days}}{180}\right)$$
 
-The cleaning engine enforces explicit, auditable policies:
-1. **Deduplication:** Identifies and drops exact duplicated rows.
-2. **Customer Identification:** For customer-level behavioral modeling, records without a valid `CustomerID` cannot be assigned to an account and are excluded from customer metrics (tracked in DQ audit). Trailing `.0` on float IDs is stripped.
-3. **Returns and Cancellations:** Invoices with a `C` prefix or negative quantities are isolated into a separate `returns_df` for return rate calculations, preventing distortion of positive sales volume.
-4. **Price and Quantity Constraints:** Requires `UnitPrice > 0` and `Quantity > 0` for primary sales modeling.
-5. **Timestamp Normalization:** Converts unparseable date records to `NaT` and drops them.
-6. **Data Quality Score:** Evaluated as:
-   $$\text{DQ Health Score} = \left(\frac{\text{Cleaned Valid Sales Rows}}{\text{Total Raw Ingested Rows}}\right) \times 100$$
+$$\text{Expected Orders} = \text{purchase\_frequency\_per\_month} \times \text{horizon\_months} \times \text{Activity Weight}$$
+
+$$\text{Predicted CLV} = \frac{\text{Expected Orders} \times \text{AOV} \times \text{Gross Margin}}{1 + \text{Discount Rate} \times \left(\frac{\text{horizon\_months}}{12}\right)}$$
 
 ---
 
-## 8. Analytical Methodologies
+### C. Time-Series Revenue Forecasting
 
-### A. RFM Segmentation
-- **Recency ($R$):** Days elapsed between the customer's last purchase and reference cutoff. Lowest recency receives the highest score ($R=5$).
-- **Frequency ($F$):** Total count of distinct orders/invoices placed. Highest frequency receives $F=5$.
-- **Monetary ($M$):** Cumulative spending across all valid invoices. Highest spending receives $M=5$.
-- **Quantile Scoring:** Implemented with rank-based percentiles to prevent bin collapse on tied values (e.g., numerous single-order customers).
-- **Segment Definitions:**
-  - **Champions:** $R \ge 4$ and $F \ge 4$
-  - **Loyal Customers:** $R \ge 3$ and $F \ge 3$
-  - **Potential Loyalists:** $R \ge 4$ and $F < 4$
-  - **Recent Customers:** $R \ge 4$ and $F = 1$
-  - **Customers Needing Attention:** $(R = 2 \text{ or } R = 3)$ and $F \ge 2$
-  - **At-Risk Customers:** $R \le 2$ and $F \ge 3$
-  - **Hibernating Customers:** $R \le 2$ and $F \le 2$
-
-### B. Customer Lifetime Value (CLV)
-1. **Probabilistic CLV (BG/NBD + Gamma-Gamma):**
-   - **Frequency Model (BG/NBD):** Assumes transaction frequency follows a Poisson process with Gamma-distributed heterogeneity across customers, while customer dropout follows a Geometric process with Beta-distributed heterogeneity.
-   - **Monetary Model (Gamma-Gamma):** Models average spend per transaction assuming transaction values follow a Gamma distribution. Assumes independence between transaction frequency and monetary value (verified via Pearson correlation test).
-   - **Automatic Fallback:** If repeat customers $< 10$ or numerical optimization fails, the system automatically falls back to the Transparent Baseline model with clear diagnostic labeling.
-2. **Transparent Forecast Baseline:**
-   $$\text{Activity Weight} = \exp\left(-\frac{\text{recency\_days}}{180}\right)$$
-   $$\text{Expected Transactions} = \text{monthly\_frequency} \times \text{horizon\_months} \times \text{Activity Weight}$$
-   $$\text{Predicted CLV} = \frac{\text{Expected Transactions} \times \text{AOV} \times \text{Gross Margin}}{1 + \text{Discount Rate} \times (\text{horizon\_months} / 12)}$$
-3. **Historical Baseline:**
-   Annualizes observed historical revenue based on active customer lifespan and discounts across the horizon.
-
-### C. Monthly Revenue Forecasting
-- **Chronological Validation:** Uses strict chronological train/test splitting (e.g., latest 3 months held out). Time-series observations are never randomly shuffled.
-- **Models:**
-  1. *Naive Baseline:* Projects the most recently observed period forward.
-  2. *Seasonal-Naive:* Repeats observations from 12 months prior (requires $\ge 24$ months of history).
-  3. *Holt-Winters Exponential Smoothing:* Captures level and additive trend with defensible 95% prediction intervals derived from residual variance:
+- **Strict Chronological Holdout Split:** Time-series observations are never randomly shuffled. The model trains on past months and evaluates on held-out recent months.
+- **Evaluated Models:**
+  1. **Naive Baseline:** Projects the last observed monthly revenue.
+  2. **Seasonal-Naive:** Repeats observations from 12 months prior (requires $\ge 24$ months).
+  3. **Holt-Winters Exponential Smoothing:** Captures level and additive trend with defensible 95% prediction intervals derived from residual variance:
      $$\hat{y}_{t+h} \pm 1.96 \cdot \sigma_{\text{residuals}}$$
 - **Evaluation Metrics:**
-  - Mean Absolute Error (MAE)
-  - Root Mean Squared Error (RMSE)
-  - Weighted Absolute Percentage Error (WAPE):
-    $$\text{WAPE} = \frac{\sum |y_t - \hat{y}_t|}{\sum |y_t|} \times 100\%$$
-  - Mean Absolute Percentage Error (MAPE) with zero-actual filtering.
+  - **MAE:** Mean Absolute Error
+  - **RMSE:** Root Mean Squared Error
+  - **WAPE:** Weighted Absolute Percentage Error:
+    $$\text{WAPE} = \frac{\sum_{t} |y_t - \hat{y}_t|}{\sum_{t} |y_t|} \times 100\%$$
+  - **MAPE:** Mean Absolute Percentage Error (computed on non-zero actuals).
 
-### D. Retention & Inactivity Analysis
-- **Monthly Cohort Heatmap:** Tracks percentage retention across acquisition cohorts over normalized monthly indices ($0, 1, 2, \dots$).
-- **Inactivity Buckets:** Categorizes accounts into operational recency intervals (Active 0–30d, Cooling Down 31–90d, Warm Inactive 91–180d, Dormant 181–365d, Lapsed >365d).
+---
+
+### D. Cohort Retention & Inactivity Lifecycle
+
+- **Acquisition Cohort Matrix:** Tracks monthly retention decay across cohorts indexed from Month 0 to Month $N$.
+- **Inactivity Buckets:** Categorizes accounts into five operational lifecycle stages:
+  - `Active`: 0–30 days
+  - `Cooling Down`: 31–90 days
+  - `Warm Inactive`: 91–180 days
+  - `Dormant`: 181–365 days
+  - `Lapsed`: >365 days
 - **Heuristic Inactivity Alerts:** Flags high-value accounts exceeding 90 days dormancy with tailored retention actions.
 
-### E. Evidence-Backed Recommendation Rules
-Every automated recommendation contains four explicit pillars:
-1. **Observed Evidence:** Concrete empirical finding (e.g., "Top 10% customers generate 64.2% of total revenue").
-2. **Trigger Rule:** Documented threshold (e.g., "Top decile concentration exceeds 50.0%").
-3. **Suggested Action:** Prescriptive initiative (e.g., "Deploy VIP loyalty perks and dedicated account monitoring").
-4. **Strategic Limitation:** Explicit boundary condition or trade-off (e.g., "Does not account for margin elasticity or price sensitivity").
-
 ---
 
-## 9. Analytical Database Schema
+### E. Rule-Based Recommendation Engine
 
-The default analytical database is DuckDB (`database/clv_engine.duckdb`), with automatic SQLite fallback (`database/clv_engine.sqlite`):
+Every recommendation generated by the system adheres to a strict 4-part evidence contract:
 
-- `pipeline_metadata`: Audit records of pipeline execution runs, execution duration, and dataset provenance.
-- `data_quality_reports`: Total rows, excluded anomalies, duplicate counts, and health scores.
-- `raw_transactions`: Staged ingested transactions.
-- `cleaned_transactions`: Validated transactions with computed total amounts and return flags.
-- `customer_metrics`: Granular customer-level aggregations (AOV, recency, lifespan, frequency).
-- `rfm_segments`: Customer segment assignments and composite scores.
-- `clv_predictions`: Predicted future transactions, revenue, and net present value.
-- `revenue_forecasts`: Historical actuals, holdout comparisons, and future monthly projections.
-
----
-
-## 10. Installation & Quickstart Guide
-
-### Prerequisites
-- Ubuntu Linux (or any modern Linux / macOS distribution)
-- Python 3.11, 3.12, or 3.14
-- 16 GB RAM recommended (project runs comfortably on < 2 GB RAM)
-
-### Step 1: Clone the Repository
-```bash
-git clone <repository_url> customer-lifetime-value-forecasting
-cd customer-lifetime-value-forecasting
+```mermaid
+classDiagram
+    class RecommendationItem {
+        +String title
+        +String category
+        +String priority
+        +String observed_evidence
+        +String threshold_rule
+        +String suggested_action
+        +String limitation
+    }
 ```
 
-### Step 2: Create and Activate Virtual Environment
+1. **Observed Evidence:** Exact computed metrics (e.g., *"Top 10% of customers generate 64.2% of total revenue"*).
+2. **Threshold Rule:** The explicit trigger condition (e.g., *"Top decile concentration exceeds 50.0%"*).
+3. **Suggested Action:** Prescriptive business initiative (e.g., *"Deploy VIP retention perks and dedicated account monitoring"*).
+4. **Strategic Limitation:** Potential trade-off or blind spot (e.g., *"Does not account for margin elasticity or price sensitivity"*).
+
+---
+
+## 6. Interactive Dashboard Architecture (7 Pages)
+
+```
+app.py
+├── Page 1: 📊 Executive Overview
+│   ├── Headline KPI Cards (Revenue, Customers, AOV, Repeat Rate, Pipeline CLV)
+│   ├── Historical Monthly Revenue Velocity Line Chart
+│   └── RFM Segment Distribution Donut & Contribution Bar
+├── Page 2: 👥 Customer Segmentation
+│   ├── Segment Performance Table (Customer & Revenue Shares)
+│   ├── Recency vs. Frequency Bubble Chart (Size = Total Spend)
+│   ├── Monetary Spend Distribution per Segment (Log Scale Box Plot)
+│   ├── Searchable & Filterable Customer Directory
+│   └── Individual Customer Deep-Dive (Order History & Basket Drilldown)
+├── Page 3: 🔮 CLV Prediction Studio
+│   ├── Model Selector (Probabilistic vs. Transparent Baseline vs. Historical)
+│   ├── Horizon (3, 6, 12M), Margin (10-100%), and Discount Rate Sliders
+│   ├── Model Diagnostic Banner (Convergence status, independence p-value)
+│   ├── Predicted CLV Histogram & Historical Spend vs. Future Value Scatter
+│   └── Granular Customer Predictions Table with CSV Export
+├── Page 4: 📈 Revenue Forecasting
+│   ├── Chronological Holdout Metrics Table (MAE, RMSE, WAPE, MAPE)
+│   ├── Historical Actuals + Validation Fit + Future Horizon Visualizer
+│   ├── 95% Uncertainty Prediction Interval Bands
+│   └── Multi-Model Future Forecast Table & CSV Download
+├── Page 5: 🔄 Retention & Cohorts
+│   ├── Repeat Purchasing KPIs (Repeat vs Single Spend Share)
+│   ├── Monthly Acquisition Cohort Retention Heatmap (%)
+│   ├── Customer Inactivity Lifecycle Distribution Bar Chart
+│   └── High-Value At-Risk Accounts Table with Prescriptive Actions
+├── Page 6: 🛠️ Data Quality & Pipeline
+│   ├── Data Quality Health Score Audit Breakdown Table
+│   ├── Manual File Uploader (.csv, .xlsx) with Auto Column Mapping
+│   ├── UCI Public Dataset Downloader
+│   ├── Deterministic Synthetic Data Generator with Calibrated Anomalies
+│   └── Analytical Database Table Inspection (DuckDB / SQLite row counts)
+└── Page 7: 💡 Insights & Export Center
+    ├── 4-Pillar Strategic Recommendation Cards
+    ├── Executive Briefing Viewer
+    └── Download Center (Markdown Report, Customer CLV CSV, Forecast CSV)
+```
+
+---
+
+## 7. Analytical Database Schema (DuckDB / SQLite)
+
+The platform creates and manages eight structured analytical tables:
+
+```sql
+pipeline_metadata      -- Run ID, timestamp, source, raw/clean counts, execution duration
+data_quality_reports   -- Duplicates, missing IDs, invalid dates, return counts, health score
+raw_transactions       -- Staged transaction-level ingestion
+cleaned_transactions   -- Deduplicated, valid transactions with computed total_amount & is_return
+customer_metrics       -- Aggregated AOV, lifespan, recency, order frequency per CustomerID
+rfm_segments           -- R/F/M scores, composite score (e.g. '555'), assigned segment
+clv_predictions        -- CustomerID, model_type, horizon_months, predicted transactions & CLV
+revenue_forecasts      -- PeriodDate, model_name, horizon, predicted_revenue, lower/upper bounds
+```
+
+---
+
+## 8. Installation & Quickstart
+
+### Prerequisites
+- Ubuntu Linux, macOS, or Windows WSL
+- Python 3.11, 3.12, or 3.14
+- 2 GB available RAM (runs smoothly without high memory consumption)
+
+### Step 1: Clone Repository & Create Virtual Environment
 ```bash
+git clone https://github.com/<your-username>/customer-lifetime-value-forecasting.git
+cd customer-lifetime-value-forecasting
+
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### Step 3: Install Dependencies
+### Step 2: Install Dependencies
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Step 4: Configure Environment (Optional)
+### Step 3: Run Automated Verification Tests
 ```bash
-cp .env.example .env
-# Edit .env to adjust default database backend (duckdb/sqlite), horizons, or discount rates
+pytest tests/
 ```
 
-### Step 5: Generate Benchmark Synthetic Dataset (If no external data)
-```bash
-python scripts/generate_synthetic_data.py --customers 400 --invoices 2500 --seed 42
-```
-
-### Step 6: Run Automated Tests
-```bash
-pytest -v tests/
-```
-
-### Step 7: Launch the Interactive Dashboard
+### Step 4: Launch the Streamlit Dashboard
 ```bash
 streamlit run app.py
 ```
-Access the application in your browser at `http://localhost:8501`.
+Open your browser at **`http://localhost:8501`**.
 
 ---
 
-## 11. Command-Line Pipeline Execution
+## 9. Automated Testing & Verification
 
-You can run the entire analytical pipeline directly from the command line:
+The project includes an automated test suite covering all 20 required analytical and operational verification points:
+
 ```bash
-# Run pipeline with default DuckDB backend and 12-month CLV horizon
-python scripts/run_pipeline.py
-
-# Run pipeline on a specific dataset with custom profit margin (e.g., 40%)
-python scripts/run_pipeline.py --source data/raw/Online_Retail.xlsx --margin 0.40 --forecast-horizon 6
+pytest tests/
 ```
 
+```text
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.7.0
+rootdir: /home/vivek/workspace/customer-lifetime-value-forecasting
+configfile: pytest.ini
+collected 33 items
+
+tests/test_cleaner.py ........                                           [ 24%]
+tests/test_clv.py ....                                                   [ 36%]
+tests/test_database.py ...                                               [ 45%]
+tests/test_forecasting.py .....                                          [ 60%]
+tests/test_loader.py ......                                              [ 78%]
+tests/test_pipeline.py ..                                                [ 84%]
+tests/test_rfm.py .....                                                  [100%]
+
+============================== 33 passed in 1.35s ==============================
+```
+
+### Test Coverage Matrix
+
+| Test Module | Coverage Areas | Verification Result |
+| :--- | :--- | :---: |
+| [`test_loader.py`](tests/test_loader.py) | CSV ingestion, in-memory buffers, column alias mapping, missing columns, empty datasets. | **PASSED (6/6)** |
+| [`test_cleaner.py`](tests/test_cleaner.py) | Deduplication, missing customer IDs, float ID cleaning, cancellation/return isolation, date parsing, price zeroes, revenue calculation. | **PASSED (8/8)** |
+| [`test_rfm.py`](tests/test_rfm.py) | Customer aggregation, single-purchase customers, quantile scoring ties, segment mapping, summary tables. | **PASSED (5/5)** |
+| [`test_clv.py`](tests/test_clv.py) | Historical baseline, transparent forecast, probabilistic convergence, automatic fallback on small samples, statistical distribution summaries. | **PASSED (4/4)** |
+| [`test_forecasting.py`](tests/test_forecasting.py) | Monthly aggregation, chronological train/test split, Naive, Seasonal-Naive, Holt-Winters, zero-actual safe evaluation. | **PASSED (5/5)** |
+| [`test_database.py`](tests/test_database.py) | DuckDB DDL initialization, parameterized queries, SQLite fallback, clean rerun table replacement. | **PASSED (3/3)** |
+| [`test_pipeline.py`](tests/test_pipeline.py) | End-to-end pipeline execution, 4-pillar recommendation rule validation, executive report generation. | **PASSED (2/2)** |
+
 ---
 
-## 12. Model Governance & Limitations
+## 10. Engineering Highlights & Design Decisions
 
-- **Non-Contractual Inactivity:** Without contractual cancellation events, churn cannot be observed directly. Inactivity thresholds (> 90 days) serve as operational heuristics, not causal churn models.
-- **Wholesale / Bulk Distortions:** The UCI Online Retail dataset contains bulk wholesale orders alongside retail consumer purchases. A small number of wholesale buyers skew average order values.
-- **Short Time-Series Horizon:** For datasets with fewer than 24 months of history, multi-year seasonality cannot be verified statistically; seasonal-naive projections reflect annual repeats rather than estimated harmonic seasonality.
-- **Gross Margin Assumptions:** Unless actual product cost data is supplied, revenue-based CLV assumes 100% gross margin. Users can configure the margin parameter to reflect true unit economics.
+1. **Why DuckDB Over PostgreSQL?**
+   DuckDB is an embedded columnar OLAP engine that runs in-process with zero network overhead, zero external daemon configuration, and native Pandas vectorized integration—ideal for local analytics and portfolio demonstrations.
+2. **Why Weekly Scaling in BG/NBD?**
+   Fitting the Beta-Geometric likelihood directly on large raw day numbers ($T > 500$) causes numerical overflow in autograd. Rescaling to weeks ($\text{days} / 7.0$) stabilizes optimization while preserving exact customer cadence.
+3. **Why Chronological Train/Test Splits?**
+   Randomly shuffling time-series observations introduces future lookahead leakage. The forecasting engine strictly splits train and test temporally.
+4. **Why Rank-Based Percentiles for RFM?**
+   Standard `pd.qcut` collapses when many customers share identical values (e.g., frequency $= 1$). Percent-rank transformation (`rank(pct=True, method='first')`) ensures continuous scoring without bin collapse.
 
 ---
 
-## 13. Privacy, Security & Git Hygiene
+## 11. Known Limitations & Responsible Modeling
 
-- No API keys, credentials, or proprietary tokens are required or committed.
-- Local DuckDB databases, SQLite files, logs, and virtual environments are explicitly excluded in `.gitignore`.
-- Synthetic data generation uses deterministic pseudorandom generators (`np.random.default_rng(seed)`), containing zero actual consumer personally identifiable information (PII).
+- **Non-Contractual Inactivity:** In non-subscription retail, customers never formally cancel. Account dormancy ($> 90$ days) is a heuristic inactivity indicator, not a definitive churn classifier.
+- **Seasonality Depth:** Datasets with fewer than 24 months of history cannot confirm multi-year seasonal periodicity statistically; seasonal-naive projections reflect annual repeats rather than estimated harmonic seasonality.
+- **Margin Configuration:** Unless unit cost of goods sold (COGS) is provided in custom uploads, CLV defaults to a configurable gross revenue basis ($100\%$ margin) or user-selected margin ratio.
+
+---
+
+## 12. License & Author
+
+- **Author:** Vivek Sharma
+- **License:** MIT License
+- **Portfolio Demonstration:** Built as an end-to-end showcase of Data Science, Data Engineering, Analytics Engineering, and Machine Learning capabilities.
