@@ -53,6 +53,7 @@ def test_forecast_evaluation_handles_zero_actuals():
 def test_chronological_train_test_split_integrity():
     """Test forecasting uses strictly chronological train/test split without lookahead leakage."""
     dates = pd.date_range("2023-01-01", periods=12, freq="MS")
+    amounts = [100.0, 110.0, 105.0, 120.0, 115.0, 130.0, 125.0, 140.0, 135.0, 150.0, 145.0, 160.0]
     test_sales = pd.DataFrame({
         "InvoiceNo": [f"INV_{i}" for i in range(12)],
         "StockCode": ["A"] * 12,
@@ -62,7 +63,7 @@ def test_chronological_train_test_split_integrity():
         "UnitPrice": [10.0] * 12,
         "CustomerID": [f"C_{i}" for i in range(12)],
         "Country": ["UK"] * 12,
-        "TotalAmount": [100.0] * 12,
+        "TotalAmount": amounts,
     })
 
     results = run_revenue_forecast_pipeline(test_sales, horizon_months=3, test_months=3)
