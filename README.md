@@ -404,6 +404,6 @@ tests/test_rfm.py .....                                                  [100%]
 
 ## 12. License & Author
 
-- **Author:** Vivek Sharma
+- **Author:** Vivek kumar
 - **License:** MIT License
 - **Portfolio Demonstration:** Built as an end-to-end showcase of Data Science, Data Engineering, Analytics Engineering, and Machine Learning capabilities.
