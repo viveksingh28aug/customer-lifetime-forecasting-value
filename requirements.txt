@@ -1,0 +1,25 @@
+# Customer Lifetime Value (CLV) & Revenue Forecasting Engine
+# Core Scientific & Data Processing
+numpy>=1.26.0
+pandas>=2.2.0
+scipy>=1.12.0
+scikit-learn>=1.4.0
+statsmodels>=0.14.0
+
+# Database
+duckdb>=0.10.0
+
+# Dashboard & Interactive Visualization
+streamlit>=1.35.0
+plotly>=5.20.0
+
+# Optional Probabilistic CLV Modeling
+lifetimes>=0.11.3
+
+# File Formats & Utilities
+openpyxl>=3.1.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Testing & Quality Assurance
+pytest>=8.0.0
