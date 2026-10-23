@@ -178,16 +178,16 @@ The studio implements two complementary models and one historical benchmark:
   Models average spend per transaction with Gamma distribution.
 - **Independence Check:** Validates Gamma-Gamma independence assumption via Pearson correlation test ($r \approx 0, p > 0.05$).
 - **Weekly Time Scaling:** Recency and customer age $T$ are scaled to weeks to prevent numerical underflow in optimization:
-  $$\text{recency\_weeks} = \frac{\text{recency\_days}}{7}, \quad T_{\text{weeks}} = \frac{T_{\text{days}}}{7}$$
+  $$\text{Recency Weeks} = \frac{\text{Recency Days}}{7}, \quad T_{\text{weeks}} = \frac{T_{\text{days}}}{7}$$
 
 #### 2. Transparent Forecast Baseline (Robust Fallback)
 When repeat buyer counts are low ($< 10$) or optimization fails, the system automatically falls back to an interpretable analytical model with exponential recency decay damping:
 
-$$\text{Activity Weight} = \exp\left(-\frac{\text{recency\_days}}{180}\right)$$
+$$\text{Activity Weight} = \exp\left(-\frac{\text{Recency Days}}{180}\right)$$
 
-$$\text{Expected Orders} = \text{purchase\_frequency\_per\_month} \times \text{horizon\_months} \times \text{Activity Weight}$$
+$$\text{Expected Orders} = \text{Monthly Frequency} \times \text{Horizon Months} \times \text{Activity Weight}$$
 
-$$\text{Predicted CLV} = \frac{\text{Expected Orders} \times \text{AOV} \times \text{Gross Margin}}{1 + \text{Discount Rate} \times \left(\frac{\text{horizon\_months}}{12}\right)}$$
+$$\text{Predicted CLV} = \frac{\text{Expected Orders} \times \text{AOV} \times \text{Gross Margin}}{1 + \text{Discount Rate} \times \left(\frac{\text{Horizon Months}}{12}\right)}$$
 
 ---
 
